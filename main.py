@@ -3,19 +3,30 @@ import secrets
 from flask_sqlalchemy import SQLAlchemy
 from elasticsearch import Elasticsearch
 from flask_cors import CORS
+import pandas as pd
 
 app = Flask(__name__)
 CORS(app)
 app.secret_key = secrets.token_urlsafe(25)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///mydatabase.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///myDatabase.db'
 db = SQLAlchemy(app)
-es = Elasticsearch()
+
+credentials_file_location = "/home/user/Downloads/credentials-a3e5f1-2021-Jan-05--14_26_59.csv"
+credentials = pd.read_csv(credentials_file_location)
+
+es_username = credentials.loc[0]['username'].strip()
+es_password = credentials.loc[0]['password ']
+hosts = "https://"+es_username+":"+es_password+"@"
+hosts += "05ba4a32533549bb802525a08a612fff.ap-south-1.aws.elastic-cloud.com:9243"
+
+es = Elasticsearch(hosts=hosts)
 
 
-class Users(db.Model):
+class User(db.Model):
     username = db.Column(db.String(100), primary_key=True)
     password = db.Column(db.String(100))
     api_key = db.Column(db.String(10), unique=True)
+    indexes = db.relationship('Index', backref='user', lazy=True)
 
     def __init__(self, username, password, api_key):
         self.username = username
@@ -26,6 +37,12 @@ class Users(db.Model):
         self.username = None
         self.password = None
         self.api_key = None
+
+
+class Index(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    username = db.Column(db.String(100), db.ForeignKey('user.username'), nullable=False)
 
 
 db.create_all()
@@ -42,11 +59,11 @@ def signup():
         return render_template('signup.html')
     else:
         print("Sign Up")
-        user = Users.query.get(request.form['username'])
+        user = User.query.get(request.form['username'])
         if user is not None:
             return render_template('signup.html', error="User Already exists")
         generated_key = secrets.token_urlsafe(10)
-        user = Users(request.form['username'], request.form['password'], generated_key)
+        user = User(request.form['username'], request.form['password'], generated_key)
         db.session.add(user)
         session['username'] = user.username
         session['api_key'] = user.api_key
@@ -64,7 +81,7 @@ def login():
         return render_template('signup.html')
     else:
         print("login")
-        user = Users.query.get(request.form['username'])
+        user = User.query.get(request.form['username'])
         if user is None:
             return render_template('signup.html', error="incorrect details")
         if user.password == request.form['password']:
@@ -99,12 +116,15 @@ def logout():
 
 @app.route("/search/<api_key>")
 def search(api_key):
-    q = db.session.query(Users)
-    user = q.filter(Users.api_key == api_key).first()
+    q = db.session.query(User)
+    user = q.filter(User.api_key == api_key).first()
     if user is None:
         return jsonify({"success": False})
 
-    search_on = list(request.args.keys())[0]
+    params = list(request.args.keys())
+    if len(params) == 0:
+        return jsonify({"success": False})
+    search_on = params[0]
     search_for = request.args[search_on]
     if search_for == "":
         return jsonify([])
@@ -128,8 +148,8 @@ def search(api_key):
 
 @app.route("/add/<api_key>", methods=['POST'])
 def add_data(api_key):
-    q = db.session.query(Users)
-    user = q.filter(Users.api_key == api_key).first()
+    q = db.session.query(User)
+    user = q.filter(User.api_key == api_key).first()
     if user is None:
         return jsonify({"success": False})
     json = request.json
