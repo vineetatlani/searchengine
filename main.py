@@ -33,7 +33,7 @@ class User(db.Model):
         self.password = password
         self.api_key = api_key
 
-    def __int__(self):
+    def __init__(self):
         self.username = None
         self.password = None
         self.api_key = None
@@ -43,6 +43,17 @@ class Index(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     username = db.Column(db.String(100), db.ForeignKey('user.username'), nullable=False)
+
+    def __init__(self, id, name, username):
+        self.username = username
+        self.name = name
+        self.id = id
+
+    def __init__(self):
+        self.username = None
+        self.password = None
+        self.api_key = None
+
 
 
 db.create_all()
@@ -96,13 +107,43 @@ def login():
 def show_api_key():
     return render_template('showApiKey.html', api_key=session['api_key'])
 
+@app.route('/addIndex')
+def add_index():
+    if request.method == 'GET':
+        return render_template('addIndex.html')
+    else:
+        username = session['username']
+        index_name = request.form['Index_name']
+        user = User.query.get(session['username'])
+        for index in user.indexes:
+            if index.name == index_name:
+                return render_template('addIndex.html',error = "Index Already exists")
+        index = Index(None,index_name,username)
+        db.session.add(index)
+
+        if create_index(index_name):
+            db.session.commit()
+            return render_template('showIndex.html')
+        else:
+            db.session.close()
+            return render_template('addIndex.html', error="something went wrong")
+
+@app.route('/showIndex')
+def add_index():
+    username = session['username']
+    index_name = request.form['Index_name']
+    user = User.query.get(session['username'])
+    return render_template('showIndex.html', data = user.indexes)
+           
+
+
+
 
 def create_index(index):
     result = es.indices.exists(index=index)
     if result:
         return False
     result = es.indices.create(index=index)
-
     print(result)
     return True
 
