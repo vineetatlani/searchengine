@@ -2,13 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Create Index</title>
+    <title>Show Indices</title>
 </head>
 <body>
     <p><h3>Index are</h3></p>
     {%for index in data %}
-    {{index}}<br> 
-    {%endfor%}
+    <p><a href="/add/{{session['api_key']}}/{{index.name}}">{{index.name}}</a></p>
+    {% endfor %}
+    <hr>
+    <p><a href="/">Home Page!</a></p>
 </body>
 </html>
 

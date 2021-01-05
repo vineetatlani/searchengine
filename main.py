@@ -16,10 +16,10 @@ credentials = pd.read_csv(credentials_file_location)
 
 es_username = credentials.loc[0]['username'].strip()
 es_password = credentials.loc[0]['password ']
-hosts = "https://"+es_username+":"+es_password+"@"
+hosts = "https://" + es_username + ":" + es_password + "@"
 hosts += "05ba4a32533549bb802525a08a612fff.ap-south-1.aws.elastic-cloud.com:9243"
 
-es = Elasticsearch(hosts=hosts)
+es = Elasticsearch()
 
 
 class User(db.Model):
@@ -33,27 +33,16 @@ class User(db.Model):
         self.password = password
         self.api_key = api_key
 
-    def __init__(self):
-        self.username = None
-        self.password = None
-        self.api_key = None
-
 
 class Index(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     username = db.Column(db.String(100), db.ForeignKey('user.username'), nullable=False)
 
-    def __init__(self, id, name, username):
+    def __init__(self, index_id, name, username):
         self.username = username
         self.name = name
-        self.id = id
-
-    def __init__(self):
-        self.username = None
-        self.password = None
-        self.api_key = None
-
+        self.id = index_id
 
 
 db.create_all()
@@ -75,15 +64,12 @@ def signup():
             return render_template('signup.html', error="User Already exists")
         generated_key = secrets.token_urlsafe(10)
         user = User(request.form['username'], request.form['password'], generated_key)
+        print(user.username + " " + user.password)
         db.session.add(user)
         session['username'] = user.username
         session['api_key'] = user.api_key
-        if create_index(user.username):
-            db.session.commit()
-            return render_template('showApiKey.html', api_key=generated_key)
-        else:
-            db.session.close()
-            return render_template('signup.html', error="something went wrong")
+        db.session.commit()
+        return render_template('showApiKey.html', api_key=generated_key)
 
 
 @app.route('/login', methods=["GET", "POST"])
@@ -107,7 +93,8 @@ def login():
 def show_api_key():
     return render_template('showApiKey.html', api_key=session['api_key'])
 
-@app.route('/addIndex')
+
+@app.route('/addIndex', methods=['GET', 'POST'])
 def add_index():
     if request.method == 'GET':
         return render_template('addIndex.html')
@@ -117,26 +104,24 @@ def add_index():
         user = User.query.get(session['username'])
         for index in user.indexes:
             if index.name == index_name:
-                return render_template('addIndex.html',error = "Index Already exists")
-        index = Index(None,index_name,username)
+                return render_template('addIndex.html', error="Index Already exists")
+        index = Index(None, index_name, username)
         db.session.add(index)
 
         if create_index(index_name):
             db.session.commit()
-            return render_template('showIndex.html')
+            user = User.query.get(session['username'])
+            return render_template('showIndex.html', data=user.indexes)
         else:
             db.session.close()
             return render_template('addIndex.html', error="something went wrong")
 
+
 @app.route('/showIndex')
-def add_index():
-    username = session['username']
-    index_name = request.form['Index_name']
+def show_index():
     user = User.query.get(session['username'])
-    return render_template('showIndex.html', data = user.indexes)
-           
-
-
+    print(user.indexes)
+    return render_template('showIndex.html', data=user.indexes)
 
 
 def create_index(index):
@@ -155,16 +140,16 @@ def logout():
     return redirect(url_for('home'))
 
 
-@app.route("/search/<api_key>")
-def search(api_key):
+@app.route("/search/<api_key>/<index>")
+def search(api_key, index):
     q = db.session.query(User)
     user = q.filter(User.api_key == api_key).first()
     if user is None:
-        return jsonify({"success": False})
+        return jsonify({"error": "Wrong Api Key"})
 
     params = list(request.args.keys())
     if len(params) == 0:
-        return jsonify({"success": False})
+        return jsonify({"error": "No parameter"})
     search_on = params[0]
     search_for = request.args[search_on]
     if search_for == "":
@@ -180,22 +165,35 @@ def search(api_key):
         }
     }
 
-    result = es.search(index=user.username, body=query_body)
+    result = es.search(index=index, body=query_body)
     matches = []
     for single in result['hits']['hits']:
         matches.append(single['_source']['title'])
     return jsonify(matches)
 
 
-@app.route("/add/<api_key>", methods=['POST'])
-def add_data(api_key):
-    q = db.session.query(User)
-    user = q.filter(User.api_key == api_key).first()
-    if user is None:
-        return jsonify({"success": False})
-    json = request.json
+@app.route("/add/<api_key>/<index>", methods=['GET', 'POST'])
+def add_data(api_key, index):
+    if request.method == 'GET':
+        return render_template('addData.html')
+    else:
+        q = db.session.query(User)
+        user = q.filter(User.api_key == api_key).first()
+        if user is None:
+            return jsonify({"error": "Wrong Api Key"})
+        for user_index in user.indexes:
+            if user_index.name == index:
+                if len(request.form) == 0:
+                    json = request.json
+                    data = json
+                else:
+                    data = request.form['data']
+                try:
+                    return es.index(index=index, body=data)
+                except:
+                    return jsonify({"error": "Input Format incorrect"})
 
-    return es.index(index=user.username, body=json)
+        return jsonify({"error": "index doesn't exist"})
 
 
 if __name__ == '__main__':

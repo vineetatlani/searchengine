@@ -11,11 +11,12 @@
     <h1>Home Page!</h1>
     <p><a href="signup">Sign Up</a></p>
     <p><a href="login">LogIn</a></p>
-    <p><a href="addIndex/{{ session['api_key'] }}">Add Index</a></p>
-    <p><a href="showIndex/{{ session['api_key'] }}">Show Indexs</a></p>
+
     {% if 'username' in session %}
-    <p><a href="search/{{ session['api_key'] }}">Search</a></p>
+    <p><a href="addIndex">Add Index</a></p>
+    <p><a href="showIndex">Show Indices</a></p>
     <p><a href="logout">Log Out</a></p>
+
     {% endif %}
     {% if 'api_key' in session %}
     <p><a href="showApiKey">My Api Key</a></p>
