@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Home Page</title>
+</head>
+<body>
+    {% if 'username' in session %}
+    <p>Logged in as {{ session['username'] }}</p>
+    {% endif %}
+    <h1>Home Page!</h1>
+    <p><a href="signup">Sign Up</a></p>
+    <p><a href="login">LogIn</a></p>
+    {% if 'username' in session %}
+    <p><a href="search/{{ session['api_key'] }}">Search</a></p>
+    <p><a href="logout">Log Out</a></p>
+    {% endif %}
+    {% if 'api_key' in session %}
+    <p><a href="showApiKey">My Api Key</a></p>
+    {% endif %}
+</body>
+</html>
