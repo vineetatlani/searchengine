@@ -4,6 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from elasticsearch import Elasticsearch
 from flask_cors import CORS
 import pandas as pd
+import json
 
 app = Flask(__name__)
 CORS(app)
@@ -91,11 +92,15 @@ def login():
 
 @app.route('/showApiKey')
 def show_api_key():
+    if 'username' not in session:
+        return redirect(url_for('home'))
     return render_template('showApiKey.html', api_key=session['api_key'])
 
 
 @app.route('/addIndex', methods=['GET', 'POST'])
 def add_index():
+    if 'username' not in session:
+        return redirect(url_for('home'))
     if request.method == 'GET':
         return render_template('addIndex.html')
     else:
@@ -119,6 +124,8 @@ def add_index():
 
 @app.route('/showIndex')
 def show_index():
+    if 'username' not in session:
+        return redirect(url_for('home'))
     user = User.query.get(session['username'])
     print(user.indexes)
     return render_template('showIndex.html', data=user.indexes)
@@ -135,6 +142,8 @@ def create_index(index):
 
 @app.route('/logout')
 def logout():
+    if 'username' not in session:
+        return redirect(url_for('home'))
     session.pop('username')
     session.pop('api_key')
     return redirect(url_for('home'))
@@ -146,10 +155,16 @@ def search(api_key, index):
     user = q.filter(User.api_key == api_key).first()
     if user is None:
         return jsonify({"error": "Wrong Api Key"})
-
+    found = False
+    for user_index in user.indexes:
+        if user_index.name == index:
+            found = True
+            break
+    if not found:
+        return jsonify({"error": "Wrong Index"})
     params = list(request.args.keys())
     if len(params) == 0:
-        return jsonify({"error": "No parameter"})
+        return jsonify({"error": "No parameters"})
     search_on = params[0]
     search_for = request.args[search_on]
     if search_for == "":
@@ -168,32 +183,65 @@ def search(api_key, index):
     result = es.search(index=index, body=query_body)
     matches = []
     for single in result['hits']['hits']:
-        matches.append(single['_source']['title'])
-    return jsonify(matches)
+        matches.append(single['_source'][search_on])
+    return jsonify(result['hits']['hits'])
 
 
 @app.route("/add/<api_key>/<index>", methods=['GET', 'POST'])
 def add_data(api_key, index):
     if request.method == 'GET':
         return render_template('addData.html')
-    else:
-        q = db.session.query(User)
-        user = q.filter(User.api_key == api_key).first()
-        if user is None:
-            return jsonify({"error": "Wrong Api Key"})
-        for user_index in user.indexes:
-            if user_index.name == index:
-                if len(request.form) == 0:
-                    json = request.json
-                    data = json
-                else:
-                    data = request.form['data']
-                try:
-                    return es.index(index=index, body=data)
-                except:
-                    return jsonify({"error": "Input Format incorrect"})
 
-        return jsonify({"error": "index doesn't exist"})
+    q = db.session.query(User)
+    user = q.filter(User.api_key == api_key).first()
+    if user is None:
+        return jsonify({"error": "Wrong Api Key"})
+    found = False
+    for user_index in user.indexes:
+        if user_index.name == index:
+            found = True
+            break
+    if not found:
+        return jsonify({"error": "Wrong Index"})
+    if len(request.form) == 0:
+        data_json = request.json
+        data = data_json
+    else:
+        try:
+            data = json.loads(request.form['data'])
+        except:
+            return jsonify({"error": "Data format invalid, should be json"})
+    data_id = None
+    if '_id' in data:
+        data_id = data['_id']
+        data.pop('_id')
+    return es.index(index=index, body=data, id=data_id)
+
+
+@app.route('/delete/<api_key>/<index>', methods=['GET', 'DELETE'])
+def delete_data(api_key, index):
+    if request.method == "GET":
+        return render_template('deleteData.html')
+    q = db.session.query(User)
+    user = q.filter(User.api_key == api_key).first()
+    if user is None:
+        return jsonify({"error": "Wrong Api Key"})
+    found = False
+    for user_index in user.indexes:
+        if user_index.name == index:
+            found = True
+            break
+    if not found:
+        return jsonify({"error": "Wrong Index"})
+
+    if '_id' in request.args:
+        delete_id = request.args['_id']
+        try:
+            return es.delete(index=index, id=delete_id)
+        except:
+            return jsonify({"acknowledgement": False})
+    else:
+        return jsonify({"error": "_id is required as arguments for deleting"})
 
 
 if __name__ == '__main__':
