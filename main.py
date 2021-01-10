@@ -113,7 +113,7 @@ def add_index():
         index = Index(None, index_name, username)
         db.session.add(index)
 
-        if create_index(index_name):
+        if create_index(username + "_" + index_name):
             db.session.commit()
             user = User.query.get(session['username'])
             return render_template('showIndex.html', data=user.indexes)
@@ -162,6 +162,7 @@ def search(api_key, index):
             break
     if not found:
         return jsonify({"error": "Wrong Index"})
+    index = user.username + "_" + index
     params = list(request.args.keys())
     if len(params) == 0:
         return jsonify({"error": "No parameters"})
@@ -203,6 +204,7 @@ def add_data(api_key, index):
             break
     if not found:
         return jsonify({"error": "Wrong Index"})
+    index = user.username + "_" + index
     if len(request.form) == 0:
         data_json = request.json
         data = data_json
@@ -233,6 +235,7 @@ def delete_data(api_key, index):
             break
     if not found:
         return jsonify({"error": "Wrong Index"})
+    index = user.username + "_" + index
 
     if '_id' in request.args:
         delete_id = request.args['_id']

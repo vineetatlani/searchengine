@@ -9,7 +9,9 @@
     <p>Logged in as {{ session['username'] }}</p>
     {% endif %}
     <h1>Home Page!</h1>
+    {% if 'username' not in session %}
     <p><a href="signup">Sign Up</a></p>
+    {% endif %}
     <p><a href="login">LogIn</a></p>
 
     {% if 'username' in session %}
