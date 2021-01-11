@@ -6,10 +6,12 @@ from flask_cors import CORS
 import pandas as pd
 import json
 
+
 app = Flask(__name__)
 CORS(app)
 app.secret_key = secrets.token_urlsafe(25)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///myDatabase.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 credentials_file_location = "/home/user/Downloads/credentials-a3e5f1-2021-Jan-05--14_26_59.csv"
@@ -17,10 +19,10 @@ credentials = pd.read_csv(credentials_file_location)
 
 es_username = credentials.loc[0]['username'].strip()
 es_password = credentials.loc[0]['password ']
-hosts = "https://" + es_username + ":" + es_password + "@"
-hosts += "05ba4a32533549bb802525a08a612fff.ap-south-1.aws.elastic-cloud.com:9243"
+host = "https://" + es_username + ":" + es_password + "@"
+host += "05ba4a32533549bb802525a08a612fff.ap-south-1.aws.elastic-cloud.com:9243"
 
-es = Elasticsearch()
+es = Elasticsearch(hosts=host)
 
 
 class User(db.Model):

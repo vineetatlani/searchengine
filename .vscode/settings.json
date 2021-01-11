@@ -1,3 +1,8 @@
 {
-    "python.pythonPath": "C:\\Program Files\\Python39\\python.exe"
+    "python.pythonPath": "/home/user/anaconda3/envs/myflask/bin/python",
+    "python.linting.pylintArgs": [
+        "--load-plugins",
+        "pylint-flask-sqlalchemy",
+        "pylint-flask"
+    ]
 }
