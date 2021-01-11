@@ -30,14 +30,14 @@ class SearchBar {
                 var url = "http://localhost:5000/search/"+that.api_key+"/"+that.index+"?"+that.parameter+"=";
                 url = url + search_value;
 
-                response = fetch(url)
+                var response = fetch(url)
                     .then(response =>{
                         return (response.json())
                     })
                     .then(data =>{
                         var text = "";
                         for (var i = 0; i < data.length; i++) {
-                            text += data[i]['_source']['title'] + "<br>";
+                            text += data[i]['_source'][that.parameter] + "<br>";
                         }
                         result_element.innerHTML = text;
                     })    
