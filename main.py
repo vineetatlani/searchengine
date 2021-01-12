@@ -184,9 +184,6 @@ def search(api_key, index):
     }
 
     result = es.search(index=index, body=query_body)
-    matches = []
-    for single in result['hits']['hits']:
-        matches.append(single['_source'][search_on])
     return jsonify(result['hits']['hits'])
 
 
