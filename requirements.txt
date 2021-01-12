@@ -14,7 +14,6 @@ Flask-SQLAlchemy==2.4.4
 Flask-WTF==0.14.3
 future==0.18.2
 itsdangerous==1.1.0
-jedi @ file:///tmp/build/80754af9/jedi_1608920718110/work
 Jinja2==2.11.2
 jupyter-client==5.3.3
 jupyter-core==4.5.0
