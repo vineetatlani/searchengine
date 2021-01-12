@@ -247,4 +247,4 @@ def delete_data(api_key, index):
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0')
+    app.run(threaded=True, port=5000)
